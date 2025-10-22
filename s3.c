@@ -23,18 +23,33 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0';
 }
 
-void parse_command(char line[], char *args[], int *argsc)
+void parse_command(char line[], char *args[], int *argsc, bool *input_redirect, bool *output_redirect, bool *redirect_filename)
 {
-    ///Implements simple tokenization (space delimited)
-    ///Note: strtok puts '\0' (null) characters within the existing storage, 
-    ///to split it into logical cstrings.
-    ///There is no dynamic allocation.
-
-    ///See the man page of strtok(...)
+    
     char *token = strtok(line, " ");
     *argsc = 0;
+
     while (token != NULL && *argsc < MAX_ARGS - 1)
     {
+    
+        if(strcmp(token, "<") == 0){
+            *input_redirect = true;
+
+            token = strtok(NULL, " ");
+            *redirect_filename = token;
+
+            continue;
+        }
+
+        if(strcmp(token,">") == 0){
+            *output_redirect = true;
+
+            token = strtok(NULL, " ");
+            *redirect_filename = token;
+
+            continue;
+        }
+
         args[(*argsc)++] = token;
         token = strtok(NULL, " ");
     }
@@ -45,28 +60,27 @@ void parse_command(char line[], char *args[], int *argsc)
 ///Launch related functions
 void child(char *args[], int argsc)
 {
-    ///Implement this function:
+    execvp(args[ARG_PROGNAME], args);
+}
 
-    ///Use execvp to load the binary 
-    ///of the command specified in args[ARG_PROGNAME].
-    ///For reference, see the code in lecture 3.
+void child_with_output_redirected(char *args[], int argsc, char *output_file){
+    int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    dup2(fd, STDOUT_FILENO);
+    close(fd);
 
     execvp(args[ARG_PROGNAME], args);
+}
 
+void child_with_input_redirected(char *args[], int argsc, char *input_file){
+    int fd = open(input_file, O_RDONLY | O_CREAT | O_TRUNC, 0644);
+    dup2(fd, STDIN_FILENO);
+    close(fd);
+
+    execvp(args[ARG_PROGNAME], args);
 }
 
 void launch_program(char *args[], int argsc)
 {
-    ///Implement this function:
-
-    ///fork() a child process.
-    ///In the child part of the code,
-    ///call child(args, argv)
-    ///For reference, see the code in lecture 2.
-
-    ///Handle the 'exit' command;
-    ///so that the shell, not the child process,
-    ///exits.
 
     int rc = fork();
 
@@ -77,4 +91,29 @@ void launch_program(char *args[], int argsc)
     }
 
 
+}
+
+void launch_program_with_redirection(char *args[], int *argsc, bool *input_redirect, bool *output_redirect, char *redirect_filename){
+    
+    int rc = fork(); 
+
+    if(rc == 0) {  // Child process
+        
+        if(*output_redirect) {
+            child_with_output_redirected(args, *argsc, redirect_filename);
+        } else if(*input_redirect) {
+            child_with_input_redirected(args, *argsc, redirect_filename);
+        }
+
+    } else {  // Parent process
+       wait(NULL);
+    }
+}
+
+void command_with_redirection(char line[]){
+    if (strchr(line, '<') != NULL || strchr(line, '>') != NULL) {
+        return true;
+    }else{
+        return false;
+    }
 }
