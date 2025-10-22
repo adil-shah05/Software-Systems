@@ -15,21 +15,27 @@ int main(int argc, char *argv[]){
     //redirect detection and data storage
     bool input_redirect = false;
     bool output_redirect = false;
+    bool append_redirect = false;
     char *redirect_filename = NULL;
 
     while (1) {
+
+        input_redirect = false;
+        output_redirect = false;
+        append_redirect = false;
+        redirect_filename = NULL;
 
         read_command_line(line);
         
         if(command_with_redirection(line))
         {///Command with redirection
-           parse_command(line, args, &argsc, &input_redirect, &output_redirect, &redirect_filename);
-           launch_program_with_redirection(args, &argsc, &input_redirect, &output_redirect, &redirect_filename);
+           parse_command(line, args, &argsc, &input_redirect, &output_redirect, &append_redirect, &redirect_filename);
+           launch_program_with_redirection(args, &argsc, &input_redirect, &output_redirect, &append_redirect, redirect_filename);
            reap();
        }
        else ///Basic command
        {
-           parse_command(line, args, &argsc, 0, 0, NULL);
+           parse_command(line, args, &argsc, &input_redirect, &output_redirect, &append_redirect, &redirect_filename);
            launch_program(args, argsc);
            reap();
        }

@@ -23,7 +23,7 @@ void read_command_line(char line[])
     line[strlen(line) - 1] = '\0';
 }
 
-void parse_command(char line[], char *args[], int *argsc, bool *input_redirect, bool *output_redirect, bool *redirect_filename)
+void parse_command(char line[], char *args[], int *argsc, bool *input_redirect, bool *output_redirect, bool *append_redirect, char **redirect_filename)
 {
     
     char *token = strtok(line, " ");
@@ -34,19 +34,25 @@ void parse_command(char line[], char *args[], int *argsc, bool *input_redirect, 
     
         if(strcmp(token, "<") == 0){
             *input_redirect = true;
-
-            token = strtok(NULL, " ");
+            token = strtok(NULL, " ");  
             *redirect_filename = token;
-
+            token = strtok(NULL, " ");  
             continue;
         }
 
-        if(strcmp(token,">") == 0){
-            *output_redirect = true;
-
-            token = strtok(NULL, " ");
+        if(strcmp(token,">>") == 0) {
+            *append_redirect = true;
+            token = strtok(NULL, " ");  
             *redirect_filename = token;
+            token = strtok(NULL, " ");  
+            continue;
+        } 
 
+        if(strcmp(token,">") == 0) {  
+            *output_redirect = true;
+            token = strtok(NULL, " ");  
+            *redirect_filename = token;
+            token = strtok(NULL, " ");  
             continue;
         }
 
@@ -55,6 +61,10 @@ void parse_command(char line[], char *args[], int *argsc, bool *input_redirect, 
     }
     
     args[*argsc] = NULL; ///args must be null terminated
+
+    printf("DEBUG: input=%d, output=%d, append=%d, filename=%s\n", 
+       *input_redirect, *output_redirect, *append_redirect, 
+       *redirect_filename ? *redirect_filename : "NULL");
 }
 
 ///Launch related functions
@@ -63,8 +73,16 @@ void child(char *args[], int argsc)
     execvp(args[ARG_PROGNAME], args);
 }
 
-void child_with_output_redirected(char *args[], int argsc, char *output_file){
-    int fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+void child_with_output_redirected(char *args[], int argsc, bool append_redirect, char *output_file){
+    
+    int fd = 0;
+
+    if(append_redirect) {
+        fd = open(output_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    } else {
+        fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    }
+    
     dup2(fd, STDOUT_FILENO);
     close(fd);
 
@@ -72,7 +90,7 @@ void child_with_output_redirected(char *args[], int argsc, char *output_file){
 }
 
 void child_with_input_redirected(char *args[], int argsc, char *input_file){
-    int fd = open(input_file, O_RDONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open(input_file, O_RDONLY, 0644);
     dup2(fd, STDIN_FILENO);
     close(fd);
 
@@ -81,7 +99,6 @@ void child_with_input_redirected(char *args[], int argsc, char *input_file){
 
 void launch_program(char *args[], int argsc)
 {
-
     int rc = fork();
 
     if(rc == 0){
@@ -89,18 +106,16 @@ void launch_program(char *args[], int argsc)
     }else{
         int rc = wait(NULL);
     }
-
-
 }
 
-void launch_program_with_redirection(char *args[], int *argsc, bool *input_redirect, bool *output_redirect, char *redirect_filename){
+void launch_program_with_redirection(char *args[], int *argsc, bool *input_redirect, bool *output_redirect, bool *append_redirect, char *redirect_filename){
     
     int rc = fork(); 
 
     if(rc == 0) {  // Child process
         
-        if(*output_redirect) {
-            child_with_output_redirected(args, *argsc, redirect_filename);
+        if(*output_redirect || *append_redirect) {
+            child_with_output_redirected(args, *argsc, *append_redirect, redirect_filename);
         } else if(*input_redirect) {
             child_with_input_redirected(args, *argsc, redirect_filename);
         }
@@ -110,7 +125,7 @@ void launch_program_with_redirection(char *args[], int *argsc, bool *input_redir
     }
 }
 
-void command_with_redirection(char line[]){
+bool command_with_redirection(char line[]){
     if (strchr(line, '<') != NULL || strchr(line, '>') != NULL) {
         return true;
     }else{
