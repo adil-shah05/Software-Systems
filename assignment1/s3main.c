@@ -26,16 +26,19 @@ int main(int argc, char *argv[]){
         redirect_filename = NULL;
 
         read_command_line(line);
-        
-        if(command_with_redirection(line))
-        {///Command with redirection
-           parse_command(line, args, &argsc, &input_redirect, &output_redirect, &append_redirect, &redirect_filename);
+
+        parse_command(line, args, &argsc, &input_redirect, &output_redirect, &append_redirect, &redirect_filename);
+
+        if(strcmp(args[0], "cd") == 0){
+            chdir(args[1]);
+        }
+        else if(command_with_redirection(line)) ///Command with redirection
+        {
            launch_program_with_redirection(args, &argsc, &input_redirect, &output_redirect, &append_redirect, redirect_filename);
            reap();
        }
        else ///Basic command
        {
-           parse_command(line, args, &argsc, &input_redirect, &output_redirect, &append_redirect, &redirect_filename);
            launch_program(args, argsc);
            reap();
        }
