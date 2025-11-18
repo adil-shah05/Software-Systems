@@ -117,22 +117,85 @@ void run_cd(char *args[], int argsc, char lwd[]) {
 
 // Checks if command contains pipes
 bool is_pipelined(char *line){
-    return (strchr(line, '|') != NULL);
+    bool in_quotes = false;
+    char quote_char = '\0';
+    
+    for(char *p = line; *p; p++) {
+        if((*p == '"' || *p == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = *p;
+        } else if(in_quotes && *p == quote_char) {
+            in_quotes = false;
+        }
+        
+        if(!in_quotes && *p == '|') {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Checks if command contains batch separator
 bool is_batched(char *line){
-    return (strchr(line, ';') != NULL);
+    bool in_quotes = false;
+    char quote_char = '\0';
+    
+    for(char *p = line; *p; p++) {
+        if((*p == '"' || *p == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = *p;
+        } else if(in_quotes && *p == quote_char) {
+            in_quotes = false;
+        }
+        
+        if(!in_quotes && *p == ';') {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Checks if command contains subshell
 bool has_subshell(char *line) {
-    return (strchr(line, '(') != NULL && strchr(line, ')') != NULL);
+    bool in_quotes = false;
+    char quote_char = '\0';
+    bool has_open = false;
+    bool has_close = false;
+    
+    for(char *p = line; *p; p++) {
+        if((*p == '"' || *p == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = *p;
+        } else if(in_quotes && *p == quote_char) {
+            in_quotes = false;
+        }
+        
+        if(!in_quotes) {
+            if(*p == '(') has_open = true;
+            if(*p == ')') has_close = true;
+        }
+    }
+    return has_open && has_close;
 }
 
 // Checks if command has I/O redirection
 bool command_with_redirection(char *line){
-    return (strchr(line, '<') != NULL || strchr(line, '>') != NULL);
+    bool in_quotes = false;
+    char quote_char = '\0';
+    
+    for(char *p = line; *p; p++) {
+        if((*p == '"' || *p == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = *p;
+        } else if(in_quotes && *p == quote_char) {
+            in_quotes = false;
+        }
+        
+        if(!in_quotes && (*p == '<' || *p == '>')) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Splits command line by pipe delimiters
